@@ -17,8 +17,8 @@ def get_action():
     question = [
         inquirer.List(
             "action",
-            message=colored("Выберите действие", 'light_yellow'),
-            choices=["Получить балансы для всех токенов на кошельках", "Получить баланс только конкретного токена", "Справка", "Выход"],
+            message=colored("Select an action", 'light_yellow'),
+            choices=["Get balances for all tokens in wallets", "Get balance for a specific token only", "Help", "Exit"],
         )
     ]
     action = inquirer.prompt(question, theme=loadth(theme))['action']
@@ -37,12 +37,12 @@ def select_chains(chains):
     question = [
         inquirer.Checkbox(
             "chains",
-            message=colored("Выберите сети, для которых нужно получить балансы (установите галочку напротив нужных вариантов ответа с помощью клавиш стрелок <- ->)", 'light_yellow'),
-            choices=["ВСЕ СЕТИ", *chains],
+            message=colored("Select networks for which to get balances (check the required options using arrow keys <- ->)", 'light_yellow'),
+            choices=["ALL NETWORKS", *chains],
         )
     ]
     selected_chains = inquirer.prompt(question, theme=loadth(theme))['chains']
-    if ('ВСЕ СЕТИ' in selected_chains):
+    if ('ALL NETWORKS' in selected_chains):
         return chains
     return selected_chains
 
@@ -57,7 +57,7 @@ def get_ticker():
     }
 
     question = [
-        inquirer.Text("ticker", message=colored("Введите название (тикер) токена", 'light_yellow'))
+        inquirer.Text("ticker", message=colored("Enter the name (ticker) of the token", 'light_yellow'))
     ]
     ticker = inquirer.prompt(question, theme=loadth(theme))['ticker'].upper()
     return ticker
@@ -74,17 +74,16 @@ def get_minimal_amount_in_usd():
         }
 
         question = [
-                inquirer.Text("min_amount", message=colored("Введите минимальную сумму в $, начиная с которой токен будет отображен в таблице", 'light_yellow'), default="0.01")
+                inquirer.Text("min_amount", message=colored("Enter the minimum amount in $ from which the token will be displayed in the table", 'light_yellow'), default="0.01")
         ]
         try:
             min_amount = float(inquirer.prompt(question, theme=loadth(theme))['min_amount'].strip())
             break
         except:
-            logger.error('Ошибка! Неверный ввод')
+            logger.error('Error! Invalid input')
     if (min_amount) == 0:
         min_amount = -1
     return min_amount
-
 
 def get_num_of_threads():
     while True:
@@ -98,13 +97,13 @@ def get_num_of_threads():
         }
 
         question = [
-                inquirer.Text("num_of_threads", message=colored("Количество рабочих потоков (если у вас > 100 адресов, ставьте только 1 поток)", 'light_yellow'), default="1")
+                inquirer.Text("num_of_threads", message=colored("Number of worker threads (if you have > 100 addresses, set only 1 thread)", 'light_yellow'), default="1")
         ]
         try:
             num_of_threads = int(inquirer.prompt(question, theme=loadth(theme))['num_of_threads'].strip())
             break
         except:
-            logger.error('Ошибка! Неверный ввод')
+            logger.error('Error! Invalid input')
     if (num_of_threads) == 0:
         num_of_threads = 3
     return num_of_threads

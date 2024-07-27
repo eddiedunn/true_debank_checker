@@ -45,8 +45,7 @@ def chain_balance(node_process, session, address, chain, ticker, min_amount):
 
 
 def show_help():
-    print('--------------------- СПРАВКА ---------------------\n> Что значит минимальная сумма токена в $?\n> Если токен будет иметь сумму в долларах, которая будет меньше чем указанное мин\
-имальное количество - он не будет занесён в таблицу\n\n> Как выбрать все сети?\n> При выборе сетей укажите пункт "ВСЕ СЕТИ" (стрелка вправо) и нажмите энтер\n\n> Что такое число рабочих потоков?\n> Это число "рабочих процессов", которые будут одновременно получать информацию по кошелькам. Чем больше потоков - тем выше шанс получить по заднице от Cloudflare. Оптимально - 3 потока\n\n> Не двигается шкала получения баланса, что делать?\n> Уменьшать число рабочих потоков / проверять наличие интернета\n\n> В чем отличия столбцов "CHAINS" и "TOTAL"?\n> Первое - это сумма монет в $ в выбранных сетях и пулах, второе - сумма монет в $ во всех сетях\n\n> Почему получение списка использованных на кошельках сетей такое долгое?\n> Потому что на данный запрос очень сильно ругается Cloudflare, поэтому работа стоит в однопоточном режиме\n\n> Другие вопросы?\n> Пиши нам в чатик https://t.me/cryptogovnozavod_chat\n--------------------- СПРАВКА ---------------------\n')
+    print('--------------------- HELP ---------------------\n> What does minimum token amount in $ mean?\n> If the token has a dollar amount less than the specified minimum amount, it will not be included in the table\n\n> How to select all networks?\n> When selecting networks, choose the "ALL NETWORKS" option (right arrow) and press enter\n\n> What are worker threads?\n> These are "worker processes" that will simultaneously retrieve information about wallets. The more threads, the higher the chance of getting blocked by Cloudflare. Optimal - 3 threads\n\n> The balance retrieval progress bar is not moving, what should I do?\n> Reduce the number of worker threads / check internet connection\n\n> What\'s the difference between "CHAINS" and "TOTAL" columns?\n> The first is the sum of coins in $ in selected networks and pools, the second is the sum of coins in $ across all networks\n\n> Why is getting the list of networks used on wallets so slow?\n> Because Cloudflare strongly restricts this request, so the work is done in single-thread mode\n\n> Other questions?\n> Write to us in the chat https://t.me/cryptogovnozavod_chat\n--------------------- HELP ---------------------\n')
 
 
 def get_used_chains(node_process, session, address):
@@ -165,11 +164,11 @@ def worker(queue_tasks, queue_results):
 def get_balances(wallets, ticker=None):
     session, node_process = setup_session()
 
-    logger.info('Получение списка использованных на кошельках сетей...')
+    logger.info('Getting list of networks used on wallets...')
     chains = list(get_chains(node_process, session, wallets))
-    logger.info('Получение списка пулов и баланса кошельков в них...')
+    logger.info('Getting list of pools and wallet balances in them...')
     pools = get_pools(node_process, session, wallets)
-    logger.success(f'Готово! Всего сетей и пулов: {len(chains) + len(pools)}\n')
+    logger.success(f'Done! Total networks and pools: {len(chains) + len(pools)}\n')
 
     min_amount = get_minimal_amount_in_usd()
     num_of_threads = get_num_of_threads()
@@ -192,7 +191,7 @@ def get_balances(wallets, ticker=None):
     start_time = time()
     for chain_id, chain in enumerate(selected_chains):
         if (chain not in pools_names):
-            logger.info(f'[{chain_id + 1}/{len(selected_chains) - len(set(selected_chains) & set(pools_names))}] Получение баланса в сети {chain.upper()}...')
+            logger.info(f'[{chain_id + 1}/{len(selected_chains) - len(set(selected_chains) & set(pools_names))}] Getting balance in network {chain.upper()}...')
 
             for wallet in wallets:
                 queue_tasks.put(('chain_balance', wallet, chain, ticker, min_amount))
@@ -204,7 +203,7 @@ def get_balances(wallets, ticker=None):
                     bar()
 
     print()
-    logger.info('Получение баланса во всех сетях для каждого кошелька')
+    logger.info('Getting balance in all networks for each wallet')
     for wallet in wallets:
         queue_tasks.put(('get_wallet_balance', wallet))
 
@@ -225,32 +224,32 @@ def get_balances(wallets, ticker=None):
         save_selected_to_excel(wallets, selected_chains, coins, balances, ticker)
 
     print()
-    logger.success(f'Готово! Таблица сохранена в {file_excel}')
-    logger.info(f'Затрачено времени: {round((time() - start_time) / 60, 1)} мин.\n')
+    logger.success(f'Done! Table saved in {file_excel}')
+    logger.info(f'Time taken: {round((time() - start_time) / 60, 1)} min.\n')
 
 
 def main():
     art = text2art(text="DEBANK   CHECKER", font="standart")
     print(colored(art,'light_blue'))
-    print(colored('Автор: t.me/cryptogovnozavod\n','light_cyan'))
+    print(colored('Author: t.me/cryptogovnozavod\n','light_cyan'))
 
     with open(file_wallets, 'r') as file:
         wallets = [row.strip().lower() for row in file]
 
-    logger.success(f'Успешно загружено {len(wallets)} адресов\n')
+    logger.success(f'Successfully loaded {len(wallets)} addresses\n')
 
     while True:
         action = get_action()
 
         match action:
-            case 'Получить балансы для всех токенов на кошельках':
+            case 'Get balances for all tokens in wallets':
                 get_balances(wallets)
-            case 'Получить баланс только конкретного токена':
+            case 'Get balance for a specific token only':
                 ticker = get_ticker()
                 get_balances(wallets, ticker)
-            case 'Справка':
+            case 'Help':
                 show_help()
-            case 'Выход':
+            case 'Exit':
                 exit()
             case _:
                 pass
