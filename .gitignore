@@ -2,6 +2,7 @@ __pycache__
 DEBANK.xlsx
 log.log
 wallets.txt
+wallets.txt.old
 *.wasm
 *.wat
 *.c

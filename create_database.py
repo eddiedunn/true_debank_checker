@@ -23,17 +23,17 @@ Attributes:
 """
 
 import sqlite3
+from app.config import DB_FILE
+from app.config import SCHEMA_FILE
 
 def create_database(db_name: str, schema_file: str):
     conn = sqlite3.connect(db_name)
-    with open(schema_file, 'r') as f:
+    with open(schema_file, 'r', encoding='utf-8') as f:
         schema = f.read()
-    
+
     conn.executescript(schema)
     conn.commit()
     conn.close()
 
 if __name__ == '__main__':
-    db_name = 'db/portfolio_history.db'
-    schema_file = 'sql/schema.sql'
-    create_database(db_name, schema_file)
+    create_database(DB_FILE, SCHEMA_FILE)

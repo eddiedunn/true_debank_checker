@@ -1,51 +1,49 @@
-"""
-This module provides utility functions for handling HTTP requests and session management.
-
-It includes functions to:
-- Generate request parameters and signatures.
-- Edit session headers with generated signatures.
-- Send HTTP requests and handle responses.
-
-Functions:
-- generate_req_rapams: Generates request parameters and signatures using a subprocess.
-- edit_session_headers: Edits session headers with generated signatures.
-- send_request: Sends an HTTP request using the provided session and handles the response.
-
-Dependencies:
-- random
-- subprocess
-- requests
-- tls_client
-- json
-- time
-- sleep
-- config (local module)
-"""
-
+import json
 import random
 import subprocess
+from time import time, sleep
+
 import requests
 import tls_client
-import json
-
-from time import time, sleep
 from loguru import logger
-from app.config import NODE_SLEEP_TIME
-from app.config import SLEEP_TIME
-from app.config import FILE_JS
+
+from app.config import NODE_SLEEP_TIME, SLEEP_TIME, FILE_JS
+class NodeProcess:
+    def __init__(self):
+        self.process = subprocess.Popen(['node', FILE_JS], 
+                                        stdin=subprocess.PIPE, 
+                                        stdout=subprocess.PIPE, 
+                                        universal_newlines=True)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.process.terminate()
+        self.process.wait()
+
+    @property
+    def stdin(self):
+        return self.process.stdin
+
+    @property
+    def stdout(self):
+        return self.process.stdout
 
 def generate_req_rapams(node_process, payload, method, path):
+    """Generate request parameters and signatures using a subprocess."""
     _json = json.dumps(payload)
 
-    node_process.stdin.write(f'{_json}|{method}|{path}')
-    sleep(NODE_SLEEP_TIME)
+    node_process.stdin.write(f'{_json}|{method}|{path}\n')
     node_process.stdin.flush()
+    sleep(NODE_SLEEP_TIME)
     output_data = node_process.stdout.readline().strip()
     signature = json.loads(output_data)
 
     return signature
 
 def edit_session_headers(node_process, session, payload, method, path):
+    """Edit session headers with generated signatures."""
     sig = generate_req_rapams(node_process, payload, method, path)
     session.headers['x-api-nonce'] = sig['nonce']
     session.headers['x-api-sign'] = sig['signature']
@@ -62,8 +60,13 @@ def edit_session_headers(node_process, session, payload, method, path):
     account = json.dumps(info)
     session.headers['account'] = account
 
+def send_request(node_process, session, method, url, payload=None, params=None):
+    """Send an HTTP request using the provided session and handle the response."""
+    if payload is None:
+        payload = {}
+    if params is None:
+        params = {}
 
-def send_request(node_process, session, method, url, payload={}, params={}):
     while True:
         try:
             if method == 'GET':
@@ -73,14 +76,11 @@ def send_request(node_process, session, method, url, payload={}, params={}):
 
             if resp.status_code == 200:
                 if 'data' in resp.text and resp.json():
-                    #logger.info(session.headers['x-api-nonce'])
                     sleep(random.uniform(SLEEP_TIME, SLEEP_TIME+0.05))
                     return resp
-                else:
-                    logger.error(f'Request not include data | Response: {resp.text}')
+                logger.error(f'Request not include data | Response: {resp.text}')
             elif resp.status_code == 429:
                 if 'Too Many' in resp.text:
-                    #logger.error(f"Too many requests | Headers: {session.headers['x-api-nonce']}")
                     logger.error(f"Too many requests | Headers: {session.headers['x-api-nonce']}")
                     sleep(random.uniform(SLEEP_TIME, SLEEP_TIME+0.05))
                 else:
@@ -92,17 +92,16 @@ def send_request(node_process, session, method, url, payload={}, params={}):
                 )
 
         except Exception as error:
-            logger.error(f'Unexcepted error while sending request to {url}: {error}')
+            logger.error(f'Unexpected error while sending request to {url}: {error}')
 
         if method == 'GET':
             edit_session_headers(node_process, session, params, method, url.split('api.debank.com')[1].split('?')[0])
         else:
             edit_session_headers(node_process, session, payload, method, url)
         sleep(1)
-        
 
 def setup_session():
-    session = requests.Session()
+    """Set up a session with appropriate headers and create a node process."""
     session = tls_client.Session(
         client_identifier="chrome112",
         random_tls_extension_order=True
@@ -131,7 +130,4 @@ def setup_session():
     }
     session.headers = headers
 
-
-    node_process = subprocess.Popen(['node', FILE_JS], stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
-    return session, node_process
-
+    return session, NodeProcess()
