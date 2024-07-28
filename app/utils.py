@@ -1,5 +1,3 @@
-"""Utility functions and classes for API interactions and request handling."""
-
 import json
 import random
 import subprocess
@@ -18,6 +16,7 @@ class NodeProcess:
         self._start_process()
 
     def _start_process(self):
+        """Start the Node.js subprocess if it's not running."""
         if not self.process or self.process.poll() is not None:
             self.process = subprocess.Popen(['node', FILE_JS],
                                             stdin=subprocess.PIPE,
@@ -25,13 +24,16 @@ class NodeProcess:
                                             universal_newlines=True)
 
     def __enter__(self):
+        """Enter the context manager."""
         self._start_process()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the context manager and close the process."""
         self.close()
 
     def close(self):
+        """Terminate the subprocess."""
         if self.process:
             self.process.terminate()
             self.process.wait()
@@ -39,19 +41,23 @@ class NodeProcess:
 
     @property
     def stdin(self):
+        """Get the stdin of the subprocess."""
         self._start_process()
         return self.process.stdin
 
     @property
     def stdout(self):
+        """Get the stdout of the subprocess."""
         self._start_process()
         return self.process.stdout
 
     def write(self, data):
+        """Write data to the subprocess stdin."""
         self.stdin.write(data)
         self.stdin.flush()
 
     def readline(self):
+        """Read a line from the subprocess stdout."""
         return self.stdout.readline()
 
 def generate_req_params(node_process, payload, method, path):
@@ -92,36 +98,51 @@ def send_request(node_process, session, method, url, payload=None, params=None):
 
     while True:
         try:
-            if method == 'GET':
-                resp = session.execute_request(method=method, url=url)
-            else:
-                resp = session.request(method=method, url=url, json=payload, params=params)
-
+            resp = _make_request(session, method, url, payload, params)
+            
             if resp.status_code == 200:
-                if 'data' in resp.text and resp.json():
-                    sleep(random.uniform(SLEEP_TIME, SLEEP_TIME+0.05))
-                    return resp
-                logger.error(f'Request not include data | Response: {resp.text}')
+                return _handle_success(resp)
             elif resp.status_code == 429:
-                if 'Too Many' in resp.text:
-                    logger.error(f"Too many requests | Headers: {session.headers['x-api-nonce']}")
-                    sleep(random.uniform(SLEEP_TIME, SLEEP_TIME+0.05))
-                else:
-                    logger.error(f'Unknown request error | Response: {resp.text}')
+                _handle_rate_limit(resp, session)
             else:
-                logger.error(
-                    f'Bad request status code: {resp.status_code} | Method: {method} | Response: {resp.text} | Url: {url} | '
-                    f'Headers: {session.headers} | Payload: {payload}'
-                )
+                _handle_error(resp, method, url, session, payload)
 
-        except Exception as error:
+        except (tls_client.exceptions.TLSClientException, json.JSONDecodeError) as error:
             logger.error(f'Unexpected error while sending request to {url}: {error}')
 
-        if method == 'GET':
-            edit_session_headers(node_process, session, params, method, url.split('api.debank.com')[1].split('?')[0])
-        else:
-            edit_session_headers(node_process, session, payload, method, url)
+        _update_headers(node_process, session, payload, params, method, url)
         sleep(1)
+
+def _make_request(session, method, url, payload, params):
+    if method == 'GET':
+        return session.execute_request(method=method, url=url)
+    return session.request(method=method, url=url, json=payload, params=params)
+
+def _handle_success(resp):
+    if 'data' in resp.text and resp.json():
+        sleep(random.uniform(SLEEP_TIME, SLEEP_TIME+0.05))
+        return resp
+    logger.error(f'Request not include data | Response: {resp.text}')
+    return None
+
+def _handle_rate_limit(resp, session):
+    if 'Too Many' in resp.text:
+        logger.error(f"Too many requests | Headers: {session.headers['x-api-nonce']}")
+        sleep(random.uniform(SLEEP_TIME, SLEEP_TIME+0.05))
+    else:
+        logger.error(f'Unknown request error | Response: {resp.text}')
+
+def _handle_error(resp, method, url, session, payload):
+    logger.error(
+        f'Bad request status code: {resp.status_code} | Method: {method} | Response: {resp.text} | Url: {url} | '
+        f'Headers: {session.headers} | Payload: {payload}'
+    )
+
+def _update_headers(node_process, session, payload, params, method, url):
+    if method == 'GET':
+        edit_session_headers(node_process, session, params, method, url.split('api.debank.com')[1].split('?')[0])
+    else:
+        edit_session_headers(node_process, session, payload, method, url)
 
 def setup_session():
     """Set up a session with appropriate headers and create a node process."""

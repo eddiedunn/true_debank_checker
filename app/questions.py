@@ -72,7 +72,14 @@ def get_minimal_amount_in_usd() -> float:
     """Prompt the user to enter a minimum amount in USD."""
     while True:
         question = [
-            inquirer.Text("min_amount", message=colored("Enter the minimum amount in $ from which the token will be displayed in the table", 'light_yellow'), default="0.01")
+            inquirer.Text(
+                "min_amount",
+                message=colored(
+                    "Enter the minimum amount in $ from which the token will be displayed in the table",
+                    'light_yellow'
+                ),
+                default="0.01"
+            )
         ]
         try:
             min_amount = float(inquirer.prompt(question, theme=loadth(THEME))['min_amount'].strip())
