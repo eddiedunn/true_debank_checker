@@ -63,8 +63,8 @@ from app.utils import logger
 from app.db_operations import save_to_database
 
 
-
 def chain_balance(node_process, session, address, chain, ticker, min_amount):
+    """Retrieve the balance of a specific cryptocurrency for a given address and chain."""
     coins = []
 
     payload = {
@@ -81,9 +81,9 @@ def chain_balance(node_process, session, address, chain, ticker, min_amount):
     )
 
     for coin in resp.json()['data']:
-        if (ticker == None or coin['optimized_symbol'] == ticker):
-            coin_in_usd = '?' if (coin["price"] is None) else coin["amount"] * coin["price"]
-            if (type(coin_in_usd) is str or (type(coin_in_usd) is float and coin_in_usd > min_amount)):
+        if ticker in (None, coin['optimized_symbol']):
+            coin_in_usd = '?' if coin["price"] is None else coin["amount"] * coin["price"]
+            if isinstance(coin_in_usd, str) or (isinstance(coin_in_usd, float) and coin_in_usd > min_amount):
                 coins.append({
                     'amount': coin['amount'],
                     'name': coin['name'],
@@ -96,6 +96,7 @@ def chain_balance(node_process, session, address, chain, ticker, min_amount):
 
 
 def show_help():
+    """Display help information for the user."""
     help_text = (
         '--------------------- HELP ---------------------\n'
         '> What does minimum token amount in $ mean?\n'
@@ -120,6 +121,7 @@ def show_help():
     print(help_text)
 
 def get_used_chains(node_process, session, address):
+    """Get the list of chains used by a specific address."""
     payload = {
         'id': address,
     }
@@ -138,18 +140,20 @@ def get_used_chains(node_process, session, address):
 
 
 def get_chains(node_process, session, wallets):
+    """Get the list of chains used by all wallets."""
     chains = set()
 
-    with alive_bar(len(wallets)) as bar:
+    with alive_bar(len(wallets)) as progress_bar:
         for wallet in wallets:
             chains = chains.union(get_used_chains(node_process, session, wallet))
-            bar()
+            progress_bar()
 
     print()
     return chains
 
 
 def get_wallet_balance(node_process, session, address):
+    """Get the total balance of a wallet."""
     payload = {
         'user_addr': address,
     }
@@ -168,6 +172,7 @@ def get_wallet_balance(node_process, session, address):
 
 
 def get_pools(node_process, session, wallets):
+    """Get the pools information for all wallets."""
     def get_pool(session, address):
         pools = {}
         payload = {
@@ -198,18 +203,18 @@ def get_pools(node_process, session, wallets):
     
     all_pools = {}
 
-    with alive_bar(len(wallets)) as bar:
+    with alive_bar(len(wallets)) as progress_bar:
         for wallet in wallets:
             pools = get_pool(session, wallet)
             for pool in pools:
-                if (pool not in all_pools):
+                if pool not in all_pools:
                     all_pools[pool] = {}
                 all_pools[pool][wallet] = pools[pool]
-            bar()
+            progress_bar()
 
     for pool in all_pools:
         for wallet in wallets:
-            if (wallet not in all_pools[pool]):
+            if wallet not in all_pools[pool]:
                 all_pools[pool][wallet] = []
     print()
 
@@ -217,22 +222,24 @@ def get_pools(node_process, session, wallets):
 
 
 def worker(queue_tasks, queue_results):
+    """Worker function for processing tasks in parallel."""
     session, node_process = setup_session()
 
     while True:
         task = queue_tasks.get()
-        if (task[0] == 'chain_balance'):
+        if task[0] == 'chain_balance':
             balance = chain_balance(node_process, session, task[1], task[2], task[3], task[4])
             queue_results.put((task[2], task[1], balance))
-        elif (task[0] == 'get_wallet_balance'):
+        elif task[0] == 'get_wallet_balance':
             balance = get_wallet_balance(node_process, session, task[1])
             queue_results.put((task[1], balance))
-        elif (task[0] == 'done'):
+        elif task[0] == 'done':
             queue_tasks.put(('done',))
             break
 
 
 def get_balances(wallets, ticker=None, auto_import=False):
+    """Get balances for all wallets."""
     session, node_process = setup_session()
 
     logger.info('Getting list of networks used on wallets...')
@@ -257,7 +264,6 @@ def get_balances(wallets, ticker=None, auto_import=False):
     coins.update(pools)
     pools_names = [pool for pool in pools]
 
-
     queue_tasks = Queue()
     queue_results = Queue()
 
@@ -269,17 +275,17 @@ def get_balances(wallets, ticker=None, auto_import=False):
 
     start_time = time()
     for chain_id, chain in enumerate(selected_chains):
-        if (chain not in pools_names):
+        if chain not in pools_names:
             logger.info(f'[{chain_id + 1}/{len(selected_chains) - len(set(selected_chains) & set(pools_names))}] Getting balance in network {chain.upper()}...')
 
             for wallet in wallets:
                 queue_tasks.put(('chain_balance', wallet, chain, ticker, min_amount))
 
-            with alive_bar(len(wallets)) as bar:
+            with alive_bar(len(wallets)) as progress_bar:
                 for wallet in wallets:
                     result = queue_results.get()
                     coins[result[0]][result[1]] = result[2]
-                    bar()
+                    progress_bar()
 
     print()
     logger.info('Getting balance in all networks for each wallet')
@@ -287,11 +293,11 @@ def get_balances(wallets, ticker=None, auto_import=False):
         queue_tasks.put(('get_wallet_balance', wallet))
 
     balances = {}
-    with alive_bar(len(wallets)) as bar:
+    with alive_bar(len(wallets)) as progress_bar:
         for wallet in wallets:
             result = queue_results.get()
             balances[result[0]] = result[1]
-            bar()
+            progress_bar()
 
     queue_tasks.put(('done',))
     for th in threads:
@@ -300,7 +306,7 @@ def get_balances(wallets, ticker=None, auto_import=False):
     # Save output
     if auto_import:
         save_to_database(DB_FILE, wallets, selected_chains, coins, pools)
-        logger.success(f'Done! Data saved to database')
+        logger.success('Done! Data saved to database')
     else:
         if ticker is None:
             save_full_to_excel(wallets, selected_chains, coins, balances)
@@ -309,14 +315,14 @@ def get_balances(wallets, ticker=None, auto_import=False):
         print()
         logger.success(f'Done! Table saved in {FILE_EXCEL}')
 
-    
     logger.info(f'Time taken: {round((time() - start_time) / 60, 1)} min.\n')
 
 
 def main():
+    """Main function to run the application."""
     art = text2art(text="DEBANK   CHECKER", font="standart")
-    print(colored(art,'light_blue'))
-    print(colored('Author: t.me/cryptogovnozavod\n','light_cyan'))
+    print(colored(art, 'light_blue'))
+    print(colored('Author: t.me/cryptogovnozavod\n', 'light_cyan'))
 
     with open(FILE_WALLETS, 'r') as file:
         wallets = [row.strip().lower() for row in file]
@@ -347,5 +353,5 @@ def main():
                     pass
 
 
-if (__name__ == '__main__'):
+if __name__ == '__main__':
     main()

@@ -169,9 +169,9 @@ def save_selected_to_excel(wallets, chains, coins, balances, ticker):
 
     write_headers(worksheet, headers, formats['header'])
     write_wallets(worksheet, wallets, formats['wallets_column'], formats['total_cell'])
-    
+
     total_usd, total_all_chains = write_data(worksheet, wallets, chains, coins, balances, ticker, formats)
-    
+
     write_totals(worksheet, len(wallets), len(headers), total_usd, total_all_chains, formats['usd_cell'])
     write_donation_info(worksheet, len(wallets), formats['donate_cell'])
 
@@ -236,9 +236,9 @@ def write_data(worksheet, wallets, chains, coins, balances, ticker, formats):
         write_chain_totals(worksheet, len(wallets), col_id, ticker, total_amount, total_in_chain, formats['usd_cell'])
 
     for row_id, wallet in enumerate(wallets, start=1):
-        total_in_wallet = sum(coin["amount"] * (coin["price"] or 0) 
-                              for chain in chains 
-                              for coin in coins[chain][wallet] 
+        total_in_wallet = sum(coin["amount"] * (coin["price"] or 0)
+                              for chain in chains
+                              for coin in coins[chain][wallet]
                               if coin['ticker'] == ticker)
         total_usd += total_in_wallet
         total_all_chains += balances[wallet]

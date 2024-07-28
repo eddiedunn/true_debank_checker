@@ -16,8 +16,6 @@ import inquirer
 from termcolor import colored
 from inquirer.themes import load_theme_from_dict as loadth
 
-from app.config import *
-
 logger = logging.getLogger(__name__)
 
 THEME = {
@@ -51,7 +49,11 @@ def select_chains(chains: List[str]) -> List[str]:
     question = [
         inquirer.Checkbox(
             "chains",
-            message=colored("Select networks for which to get balances (check the required options using arrow keys <- ->)", 'light_yellow'),
+            message=colored(
+                "Select networks for which to get balances "
+                "(check the required options using arrow keys <- ->)",
+                'light_yellow'
+            ),
             choices=["ALL NETWORKS", *chains],
         )
     ]
@@ -82,10 +84,19 @@ def get_num_of_threads() -> int:
     """Prompt the user to enter the number of worker threads."""
     while True:
         question = [
-            inquirer.Text("num_of_threads", message=colored("Number of worker threads (if you have > 100 addresses, set only 1 thread)", 'light_yellow'), default="1")
+            inquirer.Text(
+                "num_of_threads",
+                message=colored(
+                    "Number of worker threads (if you have > 100 addresses, set only 1 thread)",
+                    'light_yellow'
+                ),
+                default="1"
+            )
         ]
         try:
-            num_of_threads = int(inquirer.prompt(question, theme=loadth(THEME))['num_of_threads'].strip())
+            num_of_threads = int(
+                inquirer.prompt(question, theme=loadth(THEME))['num_of_threads'].strip()
+            )
             return 3 if num_of_threads == 0 else num_of_threads
         except ValueError:
             logger.error('Error! Invalid input')

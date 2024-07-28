@@ -26,6 +26,7 @@ FILE_JS = 'js/main.js'
 FILE_EXCEL = 'DEBANK.xlsx'
 FILE_WALLETS = 'wallets.txt'
 DB_FILE = 'db/portfolio_history.db'
+SCHEMA_FILE = 'db/schema.sql'
 # LOGGING SETTING
 FILE_LOG = 'logs/log.log'
 logger.remove()

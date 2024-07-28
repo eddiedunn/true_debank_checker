@@ -1,50 +1,73 @@
+"""Utility functions and classes for API interactions and request handling."""
+
 import json
 import random
 import subprocess
 from time import time, sleep
 
-import requests
-import tls_client
 from loguru import logger
+import tls_client
 
 from app.config import NODE_SLEEP_TIME, SLEEP_TIME, FILE_JS
+
 class NodeProcess:
+    """Manages a Node.js subprocess for generating request parameters and signatures."""
+
     def __init__(self):
-        self.process = subprocess.Popen(['node', FILE_JS], 
-                                        stdin=subprocess.PIPE, 
-                                        stdout=subprocess.PIPE, 
-                                        universal_newlines=True)
+        self.process = None
+        self._start_process()
+
+    def _start_process(self):
+        if not self.process or self.process.poll() is not None:
+            self.process = subprocess.Popen(['node', FILE_JS],
+                                            stdin=subprocess.PIPE,
+                                            stdout=subprocess.PIPE,
+                                            universal_newlines=True)
 
     def __enter__(self):
+        self._start_process()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.process.terminate()
-        self.process.wait()
+        self.close()
+
+    def close(self):
+        if self.process:
+            self.process.terminate()
+            self.process.wait()
+            self.process = None
 
     @property
     def stdin(self):
+        self._start_process()
         return self.process.stdin
 
     @property
     def stdout(self):
+        self._start_process()
         return self.process.stdout
 
-def generate_req_rapams(node_process, payload, method, path):
+    def write(self, data):
+        self.stdin.write(data)
+        self.stdin.flush()
+
+    def readline(self):
+        return self.stdout.readline()
+
+def generate_req_params(node_process, payload, method, path):
     """Generate request parameters and signatures using a subprocess."""
     _json = json.dumps(payload)
 
-    node_process.stdin.write(f'{_json}|{method}|{path}\n')
-    node_process.stdin.flush()
+    node_process.write(f'{_json}|{method}|{path}\n')
     sleep(NODE_SLEEP_TIME)
-    output_data = node_process.stdout.readline().strip()
+    output_data = node_process.readline().strip()
     signature = json.loads(output_data)
 
     return signature
 
 def edit_session_headers(node_process, session, payload, method, path):
     """Edit session headers with generated signatures."""
-    sig = generate_req_rapams(node_process, payload, method, path)
+    sig = generate_req_params(node_process, payload, method, path)
     session.headers['x-api-nonce'] = sig['nonce']
     session.headers['x-api-sign'] = sig['signature']
     session.headers['x-api-ts'] = str(sig['ts'])
