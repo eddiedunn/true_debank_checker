@@ -1,4 +1,34 @@
 #!/usr/bin/env python3
+"""
+This script initializes and runs the main application for checking blockchain balances and generating reports.
+
+It includes:
+- Importing necessary libraries and modules.
+- Defining the main function to handle the balance checking process.
+
+Functions:
+- chain_balance: Retrieves the balance of a specific cryptocurrency for a given address and chain.
+
+Dependencies:
+- threading
+- openpyxl
+- argparse
+- queue
+- time
+- art
+- alive_progress
+- app.excel
+- app.questions
+- app.config
+- app.utils
+- app.db_operations
+
+Usage:
+- Run this script directly to start the application.
+
+Example:
+    $ python start.py
+"""
 
 import threading
 import openpyxl
@@ -233,7 +263,7 @@ def get_balances(wallets, ticker=None, auto_import=False):
 
     # Save output
     if auto_import:
-        save_to_database('db/portfolio_history.db', wallets, selected_chains, coins, balances, pools)
+        save_to_database(DB_FILE, wallets, selected_chains, coins, pools)
         logger.success(f'Done! Data saved to database')
     else:
         if ticker is None:
@@ -241,7 +271,7 @@ def get_balances(wallets, ticker=None, auto_import=False):
         else:
             save_selected_to_excel(wallets, selected_chains, coins, balances, ticker)
         print()
-        logger.success(f'Done! Table saved in {file_excel}')
+        logger.success(f'Done! Table saved in {FILE_EXCEL}')
 
     
     logger.info(f'Time taken: {round((time() - start_time) / 60, 1)} min.\n')
@@ -252,7 +282,7 @@ def main():
     print(colored(art,'light_blue'))
     print(colored('Author: t.me/cryptogovnozavod\n','light_cyan'))
 
-    with open(file_wallets, 'r') as file:
+    with open(FILE_WALLETS, 'r') as file:
         wallets = [row.strip().lower() for row in file]
 
     logger.success(f'Successfully loaded {len(wallets)} addresses\n')

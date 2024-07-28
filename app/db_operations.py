@@ -1,14 +1,26 @@
+"""
+This module contains functions for performing database operations related to the pool table.
+It includes functions to insert data into the pool table, update existing records, and query
+the database for specific information.
+
+Functions:
+- insert_pool_data: Inserts a new record into the pool table.
+- update_pool_data: Updates an existing record in the pool table.
+- get_pool_data: Retrieves data from the pool table based on specific criteria.
+- delete_pool_data: Deletes a record from the pool table.
+"""
+
 import sqlite3
 from contextlib import closing
 
 def get_db_connection(db_file):
     return sqlite3.connect(db_file)
 
-def save_to_database(db_file, wallets, chains, coins, balances, pools):
+def save_to_database(db_file, wallets, chains, coins, pools):
     with closing(get_db_connection(db_file)) as conn:
         with conn:
             cursor = conn.cursor()
-            
+
             # Create a new import run
             cursor.execute("INSERT INTO import_run DEFAULT VALUES")
             import_run_id = cursor.lastrowid
@@ -65,7 +77,15 @@ def save_to_database(db_file, wallets, chains, coins, balances, pools):
                             token_lookup[token['name']] = cursor.lastrowid
                         token_id = token_lookup[token['name']]
 
-                        cursor.execute("""
-                            INSERT INTO pool (import_run_id, token_id, wallet_id, chain_id, protocol_id, quantity, token_price, value)
+                        cursor.execute(
+                            """
+                            INSERT INTO pool (
+                                import_run_id, token_id, wallet_id, chain_id, protocol_id, quantity, token_price, value
+                            )
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (import_run_id, token_id, wallet_id, chain_id, protocol_id, token['amount'], token['price'], token['amount'] * token['price']))
+                            """,
+                            (
+                                import_run_id, token_id, wallet_id, chain_id, protocol_id,
+                                token['amount'], token['price'], token['amount'] * token['price']
+                            )
+                        )

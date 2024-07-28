@@ -1,3 +1,27 @@
+"""
+This module provides utility functions for handling HTTP requests and session management.
+
+It includes functions to:
+- Generate request parameters and signatures.
+- Edit session headers with generated signatures.
+- Send HTTP requests and handle responses.
+
+Functions:
+- generate_req_rapams: Generates request parameters and signatures using a subprocess.
+- edit_session_headers: Edits session headers with generated signatures.
+- send_request: Sends an HTTP request using the provided session and handles the response.
+
+Dependencies:
+- random
+- subprocess
+- requests
+- tls_client
+- json
+- time
+- sleep
+- config (local module)
+"""
+
 import random
 import subprocess
 import requests

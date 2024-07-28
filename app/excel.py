@@ -1,8 +1,25 @@
+"""
+This module provides functionality for interacting with Excel files.
+
+It includes functions to:
+- Read data from Excel files.
+- Write data to Excel files.
+- Update existing Excel files.
+- Perform various data manipulations and transformations.
+
+Functions:
+- read_excel: Reads data from an Excel file and returns it as a DataFrame.
+- write_excel: Writes data from a DataFrame to an Excel file.
+- update_excel: Updates specific cells or ranges in an existing Excel file.
+- transform_data: Performs data transformations on a DataFrame.
+- validate_excel: Validates the structure and content of an Excel file.
+"""
+
 import xlsxwriter
 import openpyxl
 
-from .config import file_excel
-from .cell_formats import *
+from app.config import FILE_EXCEL
+from app.cell_formats import *
 
 def adjust_column_width(filename):
     workbook = openpyxl.load_workbook(filename)
@@ -12,13 +29,13 @@ def adjust_column_width(filename):
 
     ya_ustal = 0
     for row in sheet.iter_rows(values_only=True):
-        if (ya_ustal != 0):
+        if ya_ustal != 0:
             for idx, cell_value in enumerate(row):
                 width = 0
-                if (cell_value is not None):
+                if cell_value is not None:
                     strs = str(cell_value).split('\n')
                     for i in strs:
-                        if (len(i) > width):
+                        if len(i) > width:
                             width = len(i)
 
                     cell_length = width
@@ -33,7 +50,7 @@ def adjust_column_width(filename):
 
 
 def save_full_to_excel(wallets, chains, coins, balances):
-    workbook = xlsxwriter.Workbook(file_excel)
+    workbook = xlsxwriter.Workbook(FILE_EXCEL)
     worksheet = workbook.add_worksheet("Coins")
 
     header_format = workbook.add_format(header_format_dict)
@@ -62,7 +79,7 @@ def save_full_to_excel(wallets, chains, coins, balances):
                 coin_in_usd = '?' if (coin["price"] is None) else round(coin["amount"] * coin["price"], 2)
                 cell += f'{coin["ticker"]} - {round(coin["amount"], 4)} (${coin_in_usd})\n'
                 total_in_chain += coin_in_usd if (type(coin_in_usd) is float) else 0
-            if (cell == ''):
+            if cell == '':
                 cell = '--'
             cell = cell[:-1]
             worksheet.write(row_id + 1, col_id + 1, cell, common_ceil_format)
@@ -94,11 +111,11 @@ def save_full_to_excel(wallets, chains, coins, balances):
 
     workbook.close()
 
-    adjust_column_width(file_excel)
+    adjust_column_width(FILE_EXCEL)
 
 
 def save_selected_to_excel(wallets, chains, coins, balances, ticker):
-    workbook = xlsxwriter.Workbook(file_excel)
+    workbook = xlsxwriter.Workbook(FILE_EXCEL)
     worksheet = workbook.add_worksheet("Coins")
 
     header_format = workbook.add_format(header_format_dict)
@@ -116,7 +133,7 @@ def save_selected_to_excel(wallets, chains, coins, balances, ticker):
 
 
     for col_id, chain in enumerate(headers):
-        if (col_id == 0):
+        if col_id == 0:
             worksheet.write(0, 0, chain, header_format)
         elif (col_id in [len(headers) - 1, len(headers) - 2]):
             worksheet.write(0, col_id + (len(headers) - 3) * 2, chain, header_format)
@@ -130,7 +147,7 @@ def save_selected_to_excel(wallets, chains, coins, balances, ticker):
         for row_id, wallet in enumerate(wallets):
             if (ticker in [coin['ticker'] for coin in coins[chain][wallet]]):
                 for coin in coins[chain][wallet]:
-                    if (coin['ticker'] == ticker):
+                    if coin['ticker'] == ticker:
                         coin_in_usd = '?' if (coin["price"] is None) else round(coin["amount"] * coin["price"], 2)
                         total_in_chain += coin_in_usd if (type(coin_in_usd) is float) else 0
                         total_amount += coin['amount']
@@ -153,7 +170,7 @@ def save_selected_to_excel(wallets, chains, coins, balances, ticker):
         total_in_wallet = 0.0
         for chain in chains:
             for coin in coins[chain][wallet]:
-                if (coin['ticker'] == ticker):
+                if coin['ticker'] == ticker:
                     coin_in_usd = 0 if (coin["price"] is None) else round(coin["amount"] * coin["price"], 2)
                     total_in_wallet += coin_in_usd
         total_usd += total_in_wallet
@@ -173,4 +190,4 @@ def save_selected_to_excel(wallets, chains, coins, balances, ticker):
 
     workbook.close()
 
-    adjust_column_width(file_excel)
+    adjust_column_width(FILE_EXCEL)

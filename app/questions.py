@@ -1,3 +1,14 @@
+"""
+This module provides various utility functions for handling questions.
+
+It includes functions to:
+- Retrieve the number of threads.
+- Perform other question-related operations.
+
+Functions:
+- get_num_of_threads: Retrieves the number of threads based on specific criteria.
+"""
+
 import inquirer
 from termcolor import colored
 from inquirer.themes import load_theme_from_dict as loadth

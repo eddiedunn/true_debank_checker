@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""
+This module provides functionality for generating various reports.
+
+It includes functions to:
+- Generate blockchain holdings reports.
+- Export reports to HTML format.
+- Perform data aggregation and analysis for reporting purposes.
+
+Functions:
+- generate_blockchain_holdings_report: Generates a report of blockchain holdings and exports it to an HTML file.
+- export_to_html: Exports the given data to an HTML file.
+- aggregate_data: Aggregates data for reporting purposes.
+- analyze_data: Analyzes data to extract meaningful insights for reports.
+"""
 
 import sqlite3
 import plotly.graph_objects as go

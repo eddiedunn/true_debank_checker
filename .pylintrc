@@ -1,0 +1,12 @@
+[FORMAT]
+max-line-length=140
+
+[DESIGN]
+# Maximum number of arguments for function / method.
+max-args=10
+
+# Maximum number of local variables for function / method body.
+max-locals=30
+
+# Maximum number of nested blocks for function / method body.
+max-nested-blocks=5
