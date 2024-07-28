@@ -14,9 +14,31 @@ import sqlite3
 from contextlib import closing
 
 def get_db_connection(db_file):
+    """
+    Establishes a connection to the SQLite database specified by db_file.
+
+    Args:
+        db_file (str): The path to the SQLite database file.
+
+    Returns:
+        sqlite3.Connection: A connection object to the SQLite database.
+    """
     return sqlite3.connect(db_file)
 
 def save_to_database(db_file, wallets, chains, coins, pools):
+    """
+    Saves wallet, chain, coin, and pool data to the specified SQLite database.
+
+    Args:
+        db_file (str): The path to the SQLite database file.
+        wallets (list): A list of wallet data to be saved.
+        chains (list): A list of chain data to be saved.
+        coins (list): A list of coin data to be saved.
+        pools (list): A list of pool data to be saved.
+
+    Returns:
+        None
+    """
     with closing(get_db_connection(db_file)) as conn:
         with conn:
             cursor = conn.cursor()
@@ -48,10 +70,16 @@ def save_to_database(db_file, wallets, chains, coins, pools):
                             token_lookup[token['name']] = cursor.lastrowid
                         token_id = token_lookup[token['name']]
 
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             INSERT INTO wallet_token (import_run_id, token_id, wallet_id, chain_id, quantity, token_price, value)
                             VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (import_run_id, token_id, wallet_id, chain_id, token['amount'], token['price'], token['amount'] * token['price']))
+                            """,
+                            (
+                                import_run_id, token_id, wallet_id, chain_id,
+                                token['amount'], token['price'], token['amount'] * token['price']
+                            )
+                        )
 
             # Prepare protocol lookup
             cursor.execute("SELECT id, name FROM protocol")

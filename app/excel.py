@@ -19,9 +19,23 @@ import xlsxwriter
 import openpyxl
 
 from app.config import FILE_EXCEL
-from app.cell_formats import *
+from app.cell_formats import header_format_dict
+from app.cell_formats import wallets_column_format_dict
+from app.cell_formats import total_cell_format_dict
+from app.cell_formats import common_ceil_format_dict
+from app.cell_formats import usd_ceil_format_dict
+from app.cell_formats import donate_cell_format_dict
 
 def adjust_column_width(filename):
+    """
+    Adjusts the width of columns in an Excel worksheet based on the maximum length of the content in each column.
+
+    Args:
+        filename (str): The path to the Excel file to be adjusted.
+
+    Returns:
+        None
+    """
     workbook = openpyxl.load_workbook(filename)
     sheet = workbook.active
 
@@ -50,6 +64,18 @@ def adjust_column_width(filename):
 
 
 def save_full_to_excel(wallets, chains, coins, balances):
+    """
+    Saves wallet, chain, coin, and balance data to an Excel file.
+
+    Args:
+        wallets (list): A list of wallet data to be saved.
+        chains (list): A list of chain data to be saved.
+        coins (list): A list of coin data to be saved.
+        balances (list): A list of balance data to be saved.
+
+    Returns:
+        None
+    """
     workbook = xlsxwriter.Workbook(FILE_EXCEL)
     worksheet = workbook.add_worksheet("Coins")
 
@@ -191,3 +217,4 @@ def save_selected_to_excel(wallets, chains, coins, balances, ticker):
     workbook.close()
 
     adjust_column_width(FILE_EXCEL)
+    

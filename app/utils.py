@@ -29,9 +29,10 @@ import tls_client
 import json
 
 from time import time, sleep
-from .config import *
-
-
+from loguru import logger
+from app.config import NODE_SLEEP_TIME
+from app.config import SLEEP_TIME
+from app.config import FILE_JS
 
 def generate_req_rapams(node_process, payload, method, path):
     _json = json.dumps(payload)
@@ -65,19 +66,19 @@ def edit_session_headers(node_process, session, payload, method, path):
 def send_request(node_process, session, method, url, payload={}, params={}):
     while True:
         try:
-            if (method == 'GET'):
+            if method == 'GET':
                 resp = session.execute_request(method=method, url=url)
             else:
                 resp = session.request(method=method, url=url, json=payload, params=params)
 
-            if (resp.status_code == 200):
+            if resp.status_code == 200:
                 if 'data' in resp.text and resp.json():
                     #logger.info(session.headers['x-api-nonce'])
                     sleep(random.uniform(SLEEP_TIME, SLEEP_TIME+0.05))
                     return resp
                 else:
                     logger.error(f'Request not include data | Response: {resp.text}')
-            elif (resp.status_code == 429):
+            elif resp.status_code == 429:
                 if 'Too Many' in resp.text:
                     #logger.error(f"Too many requests | Headers: {session.headers['x-api-nonce']}")
                     logger.error(f"Too many requests | Headers: {session.headers['x-api-nonce']}")
@@ -85,12 +86,15 @@ def send_request(node_process, session, method, url, payload={}, params={}):
                 else:
                     logger.error(f'Unknown request error | Response: {resp.text}')
             else:
-                logger.error(f'Bad request status code: {resp.status_code} | Method: {method} | Response: {resp.text} | Url: {url} | Headers: {session.headers} | Payload: {payload}')
+                logger.error(
+                    f'Bad request status code: {resp.status_code} | Method: {method} | Response: {resp.text} | Url: {url} | '
+                    f'Headers: {session.headers} | Payload: {payload}'
+                )
 
         except Exception as error:
             logger.error(f'Unexcepted error while sending request to {url}: {error}')
 
-        if (method == 'GET'):
+        if method == 'GET':
             edit_session_headers(node_process, session, params, method, url.split('api.debank.com')[1].split('?')[0])
         else:
             edit_session_headers(node_process, session, payload, method, url)
@@ -128,5 +132,6 @@ def setup_session():
     session.headers = headers
 
 
-    node_process = subprocess.Popen(['node', 'js/main.js'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
+    node_process = subprocess.Popen(['node', FILE_JS], stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
     return session, node_process
+

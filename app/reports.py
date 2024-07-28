@@ -23,7 +23,7 @@ conn = sqlite3.connect('db/portfolio_history.db')
 cursor = conn.cursor()
 
 # Example query for total value over time by chain
-query1 = """
+QUERY1 = """
 SELECT 
     i.run_date, 
     c.name as chain_name, 
@@ -39,7 +39,7 @@ ORDER BY
 """
 
 # Example query for top tokens by value
-query2 = """
+QUERY2 = """
 SELECT 
     t.name as token_name,
     SUM(wt.value) as total_value
@@ -57,18 +57,18 @@ LIMIT 10
 """
 
 # Execute queries
-cursor.execute(query1)
+cursor.execute(QUERY1)
 results1 = cursor.fetchall()
 
-cursor.execute(query2)
+cursor.execute(QUERY2)
 results2 = cursor.fetchall()
 
 # Close the connection
 conn.close()
 
 # Prepare data for plotting
-dates = list(set([r[0] for r in results1]))
-chains = list(set([r[1] for r in results1]))
+dates = list({r[0] for r in results1})
+chains = list({r[1] for r in results1})
 values = {chain: [0]*len(dates) for chain in chains}
 
 for r in results1:
