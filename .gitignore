@@ -8,3 +8,4 @@ wallets.txt
 node_modules/
 db/*.db
 blockchain_holdings_report.html
+*.old
