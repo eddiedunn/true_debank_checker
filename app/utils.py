@@ -1,3 +1,5 @@
+"""This module provides utilities for managing Node.js subprocesses and handling HTTP requests."""
+
 import json
 import random
 import subprocess
@@ -102,12 +104,12 @@ def send_request(node_process, session, method, url, payload=None, params=None):
             
             if resp.status_code == 200:
                 return _handle_success(resp)
-            elif resp.status_code == 429:
+            if resp.status_code == 429:
                 _handle_rate_limit(resp, session)
             else:
                 _handle_error(resp, method, url, session, payload)
 
-        except (tls_client.exceptions.TLSClientException, json.JSONDecodeError) as error:
+        except (tls_client.exceptions.TLSClientExeption, json.JSONDecodeError) as error:
             logger.error(f'Unexpected error while sending request to {url}: {error}')
 
         _update_headers(node_process, session, payload, params, method, url)
