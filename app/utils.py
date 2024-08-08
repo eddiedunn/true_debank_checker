@@ -32,7 +32,7 @@ class NodeProcess:
         logger.info("Starting Node.js process")
         if self.process:
             self.close()
-        
+
         with subprocess.Popen(
             ['node', FILE_JS],
             stdin=subprocess.PIPE,
@@ -179,7 +179,11 @@ def generate_req_params(node_process, payload, method, path):
             if attempt < max_retries - 1:
                 logger.info("Retrying generate_req_params")
             else:
-                raise RuntimeError("Failed to generate request parameters after multiple attempts")
+                raise RuntimeError("Failed to generate request parameters after multiple attempts") from e
+
+    # This line will never be reached due to the raise statement in the loop.
+    # However, to satisfy the linter, we can add a return statement here.
+    return None
 
 def edit_session_headers(node_process, session, payload, method, path):
     """
