@@ -207,7 +207,7 @@ def get_pools(node_process, session, wallets):
                 logger.error(f"Error getting pools for wallet {wallet}: {str(e)}")
             a_bar.next()
 
-    for pool, pool_data in all_pools.items():
+    for pool_data in all_pools.items():
         for wallet in wallets:
             if wallet not in pool_data:
                 pool_data[wallet] = []
