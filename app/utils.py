@@ -11,70 +11,89 @@ import tls_client
 from app.config import NODE_SLEEP_TIME, SLEEP_TIME, FILE_JS
 
 class NodeProcess:
-    """Manages a Node.js subprocess for generating request parameters and signatures."""
-
     def __init__(self):
         self.process = None
         self._start_process()
 
     def _start_process(self):
-        """Start the Node.js subprocess if it's not running."""
-        if not self.process or self.process.poll() is not None:
-            with subprocess.Popen(
-                ['node', FILE_JS],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                universal_newlines=True
-            ) as process:
-                self.process = process
+        logger.info("Starting Node.js process")
+        if self.process:
+            self.close()
+        self.process = subprocess.Popen(
+            ['node', FILE_JS],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        logger.info("Node.js process started")
 
     def __enter__(self):
-        """Enter the context manager."""
-        self._start_process()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Exit the context manager and close the process."""
         self.close()
 
+    def write(self, data):
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                self.process.stdin.write(data)
+                self.process.stdin.flush()
+                return
+            except (ValueError, IOError) as e:
+                logger.error(f"Error writing to Node.js process (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    logger.info("Restarting Node.js process")
+                    self._start_process()
+                else:
+                    raise RuntimeError("Failed to write to Node.js process after multiple attempts")
+
+    def readline(self):
+        try:
+            return self.process.stdout.readline().strip()
+        except (ValueError, IOError) as e:
+            logger.error(f"Error reading from Node.js process: {e}")
+            self._start_process()
+            return self.process.stdout.readline().strip()
+
     def close(self):
-        """Terminate the subprocess."""
         if self.process:
+            logger.info("Closing Node.js process")
             self.process.terminate()
-            self.process.wait()
+            self.process.wait(timeout=5)
             self.process = None
 
     @property
     def stdin(self):
-        """Get the stdin of the subprocess."""
-        self._start_process()
+        if not self.process:
+            self._start_process()
         return self.process.stdin
 
     @property
     def stdout(self):
-        """Get the stdout of the subprocess."""
-        self._start_process()
+        if not self.process:
+            self._start_process()
         return self.process.stdout
 
-    def write(self, data):
-        """Write data to the subprocess stdin."""
-        self.stdin.write(data)
-        self.stdin.flush()
-
-    def readline(self):
-        """Read a line from the subprocess stdout."""
-        return self.stdout.readline()
-
 def generate_req_params(node_process, payload, method, path):
-    """Generate request parameters and signatures using a subprocess."""
-    _json = json.dumps(payload)
-
-    node_process.write(f'{_json}|{method}|{path}\n')
-    sleep(NODE_SLEEP_TIME)
-    output_data = node_process.readline().strip()
-    signature = json.loads(output_data)
-
-    return signature
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            _json = json.dumps(payload)
+            node_process.write(f'{_json}|{method}|{path}\n')
+            sleep(NODE_SLEEP_TIME * 2)  # Increased sleep time
+            output_data = node_process.readline()
+            if not output_data:
+                raise ValueError("Empty response from Node.js process")
+            signature = json.loads(output_data)
+            return signature
+        except (ValueError, json.JSONDecodeError) as e:
+            logger.error(f"Error in generate_req_params (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                logger.info("Retrying generate_req_params")
+            else:
+                raise RuntimeError("Failed to generate request parameters after multiple attempts")
 
 def edit_session_headers(node_process, session, payload, method, path):
     """Edit session headers with generated signatures."""
@@ -179,4 +198,5 @@ def setup_session():
     }
     session.headers = headers
 
-    return session, NodeProcess()
+    node_process = NodeProcess()
+    return session, node_process

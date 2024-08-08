@@ -96,6 +96,17 @@ def get_used_chains(node_process, session, address):
 
     return chains
 
+def get_chains(node_process, session, wallets):
+    """Get the list of chains used by all wallets."""
+    chains = set()
+
+    with alive_bar(len(wallets)) as a_bar:
+        for wallet in wallets:
+            chains = chains.union(get_used_chains(node_process, session, wallet))
+            a_bar()
+
+    print()
+    return chains
 
 def get_wallet_balance(node_process, session, address):
     """Get the total balance of a wallet."""
@@ -147,14 +158,14 @@ def get_pools(node_process, session, wallets):
 
     all_pools = {}
 
-    with alive_bar(len(wallets)) as bar:
+    with alive_bar(len(wallets)) as a_bar:
         for wallet in wallets:
             pools = get_pool(session, wallet)
             for pool_name, pool_data in pools.items():
                 if pool_name not in all_pools:
                     all_pools[pool_name] = {}
                 all_pools[pool_name][wallet] = pool_data
-            bar()
+            a_bar()
 
     for pool in all_pools:
         for wallet in wallets:
@@ -203,11 +214,11 @@ def process_balances(wallets, selected_chains, ticker, min_amount, num_of_thread
             for wallet in wallets:
                 queue_tasks.put(('chain_balance', wallet, chain, ticker, min_amount))
 
-            with alive_bar(len(wallets)) as bar:
+            with alive_bar(len(wallets)) as a_bar:
                 for _ in wallets:
                     result = queue_results.get()
                     coins[result[0]][result[1]] = result[2]
-                    bar()
+                    a_bar()
 
     print()
     logger.info('Getting balance in all networks for each wallet')
@@ -215,11 +226,11 @@ def process_balances(wallets, selected_chains, ticker, min_amount, num_of_thread
         queue_tasks.put(('get_wallet_balance', wallet))
 
     balances = {}
-    with alive_bar(len(wallets)) as bar:
+    with alive_bar(len(wallets)) as a_bar:
         for _ in wallets:
             result = queue_results.get()
             balances[result[0]] = result[1]
-            bar()
+            a_bar()
 
     queue_tasks.put(('done',))
     for th in threads:
@@ -227,9 +238,11 @@ def process_balances(wallets, selected_chains, ticker, min_amount, num_of_thread
 
     return coins, balances, start_time
 
-def get_balances(wallets, ticker=None, auto_import=False):
+
+def get_balances(wallets, ticker=None, auto_import=False, session=None, node_process=None):
     """Get balances for all wallets."""
-    session, node_process = setup_session()
+    if session is None or node_process is None:
+        session, node_process = setup_session()
 
     logger.info('Getting list of networks used on wallets...')
     chains = list(get_chains(node_process, session, wallets))
@@ -284,21 +297,26 @@ def main():
     parser.add_argument('--auto-import', action='store_true', help='Run automatic import on all chains')
     args = parser.parse_args()
 
-    if args.auto_import:
-        get_balances(wallets, auto_import=True)
-    else:
-        while True:
-            action = get_action()
+    session, node_process = setup_session()
 
-            if action == 'Get balances for all tokens in wallets':
-                get_balances(wallets)
-            elif action == 'Get balance for a specific token only':
-                ticker = get_ticker()
-                get_balances(wallets, ticker)
-            elif action == 'Help':
-                show_help()
-            elif action == 'Exit':
-                sys.exit()
+    try:
+        if args.auto_import:
+            get_balances(wallets, auto_import=True, session=session, node_process=node_process)
+        else:
+            while True:
+                action = get_action()
+
+                if action == 'Get balances for all tokens in wallets':
+                    get_balances(wallets, session=session, node_process=node_process)
+                elif action == 'Get balance for a specific token only':
+                    ticker = get_ticker()
+                    get_balances(wallets, ticker, session=session, node_process=node_process)
+                elif action == 'Help':
+                    show_help()
+                elif action == 'Exit':
+                    break
+    finally:
+        node_process.close()
 
 if __name__ == '__main__':
     main()
