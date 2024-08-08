@@ -3,7 +3,7 @@
 This script initializes and runs the main application for checking blockchain balances and generating reports.
 """
 
-import sys
+
 import threading
 import argparse
 from queue import Queue

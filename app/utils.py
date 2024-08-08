@@ -11,11 +11,24 @@ import tls_client
 from app.config import NODE_SLEEP_TIME, SLEEP_TIME, FILE_JS
 
 class NodeProcess:
+    """
+    Manages a Node.js subprocess for communication between Python and Node.js.
+
+    This class handles starting, communicating with, and closing a Node.js subprocess.
+    It provides methods for writing to and reading from the subprocess, and implements
+    context manager protocol for safe resource management.
+    """
+
     def __init__(self):
         self.process = None
         self._start_process()
 
     def _start_process(self):
+        """
+        Starts a new Node.js subprocess.
+
+        If a process is already running, it closes the existing one before starting a new one.
+        """
         logger.info("Starting Node.js process")
         if self.process:
             self.close()
@@ -29,12 +42,37 @@ class NodeProcess:
         logger.info("Node.js process started")
 
     def __enter__(self):
+        """
+        Enters the context manager protocol.
+
+        Returns:
+            NodeProcess: The instance itself.
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Exits the context manager protocol, ensuring the subprocess is closed.
+
+        Args:
+            exc_type: The exception type if an exception was raised.
+            exc_val: The exception value if an exception was raised.
+            exc_tb: The traceback if an exception was raised.
+        """
         self.close()
 
     def write(self, data):
+        """
+        Writes data to the Node.js subprocess.
+
+        Attempts to write data to the subprocess, retrying up to 3 times if an error occurs.
+
+        Args:
+            data: The data to write to the subprocess.
+
+        Raises:
+            RuntimeError: If writing fails after multiple attempts.
+        """
         max_retries = 3
         for attempt in range(max_retries):
             try:
@@ -50,6 +88,14 @@ class NodeProcess:
                     raise RuntimeError("Failed to write to Node.js process after multiple attempts")
 
     def readline(self):
+        """
+        Reads a line from the Node.js subprocess.
+
+        If an error occurs while reading, it restarts the subprocess and tries again.
+
+        Returns:
+            str: The line read from the subprocess, stripped of whitespace.
+        """
         try:
             return self.process.stdout.readline().strip()
         except (ValueError, IOError) as e:
@@ -58,6 +104,11 @@ class NodeProcess:
             return self.process.stdout.readline().strip()
 
     def close(self):
+        """
+        Closes the Node.js subprocess.
+
+        Terminates the subprocess if it's running and waits for it to finish.
+        """
         if self.process:
             logger.info("Closing Node.js process")
             self.process.terminate()
@@ -77,6 +128,21 @@ class NodeProcess:
         return self.process.stdout
 
 def generate_req_params(node_process, payload, method, path):
+    """
+    Generates request parameters by communicating with the Node.js process.
+
+    Args:
+        node_process (NodeProcess): The Node.js process to communicate with.
+        payload (dict): The payload to send to the Node.js process.
+        method (str): The HTTP method of the request.
+        path (str): The path of the request.
+
+    Returns:
+        dict: A dictionary containing generated signature parameters.
+
+    Raises:
+        RuntimeError: If generation fails after multiple attempts.
+    """
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -96,7 +162,16 @@ def generate_req_params(node_process, payload, method, path):
                 raise RuntimeError("Failed to generate request parameters after multiple attempts")
 
 def edit_session_headers(node_process, session, payload, method, path):
-    """Edit session headers with generated signatures."""
+    """
+    Edits session headers with generated signatures and additional information.
+
+    Args:
+        node_process (NodeProcess): The Node.js process to use for generating signatures.
+        session: The session object whose headers will be edited.
+        payload (dict): The payload used to generate the signature.
+        method (str): The HTTP method of the request.
+        path (str): The path of the request.
+    """
     sig = generate_req_params(node_process, payload, method, path)
     session.headers['x-api-nonce'] = sig['nonce']
     session.headers['x-api-sign'] = sig['signature']
@@ -114,7 +189,23 @@ def edit_session_headers(node_process, session, payload, method, path):
     session.headers['account'] = account
 
 def send_request(node_process, session, method, url, payload=None, params=None):
-    """Send an HTTP request using the provided session and handle the response."""
+    """
+    Sends an HTTP request and handles the response.
+
+    This function attempts to send a request, handling various response scenarios
+    including success, rate limiting, and errors. It will retry the request if necessary.
+
+    Args:
+        node_process (NodeProcess): The Node.js process to use for header updates.
+        session: The session object to use for the request.
+        method (str): The HTTP method of the request.
+        url (str): The URL to send the request to.
+        payload (dict, optional): The payload to send with the request. Defaults to None.
+        params (dict, optional): The query parameters to send with the request. Defaults to None.
+
+    Returns:
+        Response or None: The response object if successful, None otherwise.
+    """
     if payload is None:
         payload = {}
     if params is None:
@@ -138,11 +229,33 @@ def send_request(node_process, session, method, url, payload=None, params=None):
         sleep(1)
 
 def _make_request(session, method, url, payload, params):
+    """
+    Makes an HTTP request using the provided session.
+
+    Args:
+        session: The session object to use for the request.
+        method (str): The HTTP method of the request.
+        url (str): The URL to send the request to.
+        payload (dict): The payload to send with the request.
+        params (dict): The query parameters to send with the request.
+
+    Returns:
+        Response: The response object from the request.
+    """
     if method == 'GET':
         return session.execute_request(method=method, url=url)
     return session.request(method=method, url=url, json=payload, params=params)
 
 def _handle_success(resp):
+    """
+    Handles a successful HTTP response.
+
+    Args:
+        resp: The response object to handle.
+
+    Returns:
+        Response or None: The response object if it contains data, None otherwise.
+    """
     if 'data' in resp.text and resp.json():
         sleep(random.uniform(SLEEP_TIME, SLEEP_TIME+0.05))
         return resp
@@ -150,6 +263,13 @@ def _handle_success(resp):
     return None
 
 def _handle_rate_limit(resp, session):
+    """
+    Handles a rate-limited HTTP response.
+
+    Args:
+        resp: The response object to handle.
+        session: The session object used for the request.
+    """
     if 'Too Many' in resp.text:
         logger.error(f"Too many requests | Headers: {session.headers['x-api-nonce']}")
         sleep(random.uniform(SLEEP_TIME, SLEEP_TIME+0.05))
@@ -157,19 +277,45 @@ def _handle_rate_limit(resp, session):
         logger.error(f'Unknown request error | Response: {resp.text}')
 
 def _handle_error(resp, method, url, session, payload):
+    """
+    Handles an error HTTP response.
+
+    Args:
+        resp: The response object to handle.
+        method (str): The HTTP method of the request.
+        url (str): The URL of the request.
+        session: The session object used for the request.
+        payload (dict): The payload sent with the request.
+    """
     logger.error(
         f'Bad request status code: {resp.status_code} | Method: {method} | Response: {resp.text} | Url: {url} | '
         f'Headers: {session.headers} | Payload: {payload}'
     )
 
 def _update_headers(node_process, session, payload, params, method, url):
+    """
+    Updates the session headers for a new request.
+
+    Args:
+        node_process (NodeProcess): The Node.js process to use for generating signatures.
+        session: The session object whose headers will be updated.
+        payload (dict): The payload for the request.
+        params (dict): The query parameters for the request.
+        method (str): The HTTP method of the request.
+        url (str): The URL of the request.
+    """
     if method == 'GET':
         edit_session_headers(node_process, session, params, method, url.split('api.debank.com')[1].split('?')[0])
     else:
         edit_session_headers(node_process, session, payload, method, url)
 
 def setup_session():
-    """Set up a session with appropriate headers and create a node process."""
+    """
+    Sets up a session with appropriate headers and creates a Node.js process.
+
+    Returns:
+        tuple: A tuple containing the set up session and the created NodeProcess object.
+    """
     session = tls_client.Session(
         client_identifier="chrome112",
         random_tls_extension_order=True
