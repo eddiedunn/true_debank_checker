@@ -6,10 +6,10 @@ This script initializes and runs the main application for checking blockchain ba
 
 import threading
 import argparse
-import requests
+
 from queue import Queue
 from time import time
-
+import requests
 from termcolor import colored
 from art import text2art
 from alive_progress import alive_bar
@@ -205,12 +205,12 @@ def get_pools(node_process, session, wallets):
                     all_pools[pool_name][wallet] = pool_data
             except (requests.RequestException, ValueError, KeyError) as e:
                 logger.error(f"Error getting pools for wallet {wallet}: {str(e)}")
-            a_bar.next() 
+            a_bar.next()
 
-    for pool in all_pools:
+    for pool, pool_data in all_pools.items():
         for wallet in wallets:
-            if wallet not in all_pools[pool]:
-                all_pools[pool][wallet] = []
+            if wallet not in pool_data:
+                pool_data[wallet] = []
 
     logger.info(f"Found {len(all_pools)} pools")
     return all_pools
@@ -270,7 +270,7 @@ def process_balances(wallets, selected_chains, ticker, min_amount, num_of_thread
         for _ in wallets:
             result = queue_results.get()
             balances[result[0]] = result[1]
-            a_bar().next()
+            a_bar.next()
 
     # Add pool balances to coins
     for pool_name, pool_data in pools.items():
