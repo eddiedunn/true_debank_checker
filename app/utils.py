@@ -32,14 +32,16 @@ class NodeProcess:
         logger.info("Starting Node.js process")
         if self.process:
             self.close()
-        self.process = subprocess.Popen(
+        
+        with subprocess.Popen(
             ['node', FILE_JS],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True
-        )
-        logger.info("Node.js process started")
+        ) as process:
+            self.process = process
+            logger.info("Node.js process started")
 
     def __enter__(self):
         """
@@ -85,7 +87,7 @@ class NodeProcess:
                     logger.info("Restarting Node.js process")
                     self._start_process()
                 else:
-                    raise RuntimeError("Failed to write to Node.js process after multiple attempts")
+                    raise RuntimeError("Failed to write to Node.js process after multiple attempts") from e
 
     def readline(self):
         """
@@ -115,17 +117,35 @@ class NodeProcess:
             self.process.wait(timeout=5)
             self.process = None
 
-    @property
-    def stdin(self):
-        if not self.process:
-            self._start_process()
-        return self.process.stdin
+        @property
+        def stdin(self):
+            """
+            Get the stdin stream of the Node.js subprocess.
 
-    @property
-    def stdout(self):
-        if not self.process:
-            self._start_process()
-        return self.process.stdout
+            If the subprocess is not currently running, this method will start it
+            before returning the stdin stream.
+
+            Returns:
+                io.TextIOWrapper: The stdin stream of the Node.js subprocess.
+            """
+            if not self.process:
+                self._start_process()
+            return self.process.stdin
+
+        @property
+        def stdout(self):
+            """
+            Get the stdout stream of the Node.js subprocess.
+
+            If the subprocess is not currently running, this method will start it
+            before returning the stdout stream.
+
+            Returns:
+                io.TextIOWrapper: The stdout stream of the Node.js subprocess.
+            """
+            if not self.process:
+                self._start_process()
+            return self.process.stdout
 
 def generate_req_params(node_process, payload, method, path):
     """

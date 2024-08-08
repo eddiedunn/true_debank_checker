@@ -103,7 +103,7 @@ def get_chains(node_process, session, wallets):
     with alive_bar(len(wallets)) as a_bar:
         for wallet in wallets:
             chains = chains.union(get_used_chains(node_process, session, wallet))
-            a_bar()
+            a_bar.next() 
 
     print()
     return chains
@@ -127,7 +127,38 @@ def get_wallet_balance(node_process, session, address):
     return usd_value
 
 def get_pools(node_process, session, wallets):
+    """
+    Retrieve pools for a list of wallets.
+
+    This function iterates over a list of wallets and retrieves the pool information
+    for each wallet by making requests to the Debank API. It uses a progress bar to
+    indicate the progress of the operation.
+
+    Args:
+        node_process: The Node.js process used to handle requests.
+        session: The requests session object used to make HTTP requests.
+        wallets (list): A list of wallet addresses to retrieve pool information for.
+
+    Returns:
+        dict: A dictionary where keys are pool names and values are dictionaries
+              mapping wallet addresses to their respective pool data.
+    """
     def get_pool(session, address):
+        """
+        Retrieve pool information for a single wallet address.
+
+        This function makes a request to the Debank API to get the pool information
+        for a given wallet address and processes the response to extract relevant
+        data.
+
+        Args:
+            session: The requests session object used to make HTTP requests.
+            address (str): The wallet address to retrieve pool information for.
+
+        Returns:
+            dict: A dictionary where keys are pool names and values are lists of
+                  assets in the pool.
+        """
         pools = {}
         payload = {
             'user_addr': address,
@@ -179,7 +210,7 @@ def get_pools(node_process, session, wallets):
         for wallet in wallets:
             if wallet not in all_pools[pool]:
                 all_pools[pool][wallet] = []
-    
+
     logger.info(f"Found {len(all_pools)} pools")
     return all_pools
 
