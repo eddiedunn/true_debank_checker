@@ -20,10 +20,13 @@ class NodeProcess:
     def _start_process(self):
         """Start the Node.js subprocess if it's not running."""
         if not self.process or self.process.poll() is not None:
-            self.process = subprocess.Popen(['node', FILE_JS],
-                                            stdin=subprocess.PIPE,
-                                            stdout=subprocess.PIPE,
-                                            universal_newlines=True)
+            with subprocess.Popen(
+                ['node', FILE_JS],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                universal_newlines=True
+            ) as process:
+                self.process = process
 
     def __enter__(self):
         """Enter the context manager."""
@@ -101,7 +104,7 @@ def send_request(node_process, session, method, url, payload=None, params=None):
     while True:
         try:
             resp = _make_request(session, method, url, payload, params)
-            
+ 
             if resp.status_code == 200:
                 return _handle_success(resp)
             if resp.status_code == 429:

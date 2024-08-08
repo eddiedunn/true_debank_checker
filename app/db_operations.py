@@ -133,3 +133,4 @@ def save_to_database(db_file, wallets, chains, coins, pools):
                         pool_count += 1
 
     print(f"Inserted {protocol_count} protocols and {pool_count} pool entries to {db_file} database")
+    

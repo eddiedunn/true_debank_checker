@@ -96,14 +96,9 @@ def get_used_chains(node_process, session, address):
 
     return chains
 
-def get_chains(node_process, session, wallets):
-    """Get the list of chains used by all wallets."""
-    chains = set()
-
-    with alive_bar(len(wallets)) as bar:
-        for wallet in wallets:
+≥
             chains = chains.union(get_used_chains(node_process, session, wallet))
-            bar()
+            progress_bar()
 
     print()
     return chains
@@ -155,7 +150,7 @@ def get_pools(node_process, session, wallets):
                     })
 
         return pools
-    
+
     all_pools = {}
 
     with alive_bar(len(wallets)) as bar:
@@ -195,7 +190,7 @@ def process_balances(wallets, selected_chains, ticker, min_amount, num_of_thread
     """Process balances for all wallets."""
     coins = {chain: {} for chain in selected_chains}
     pools_names = list(pools)
-    
+
     queue_tasks = Queue()
     queue_results = Queue()
 
