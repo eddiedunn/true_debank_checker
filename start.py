@@ -127,7 +127,6 @@ def get_wallet_balance(node_process, session, address):
     return usd_value
 
 def get_pools(node_process, session, wallets):
-    """Get the pools information for all wallets."""
     def get_pool(session, address):
         pools = {}
         payload = {
@@ -142,16 +141,22 @@ def get_pools(node_process, session, wallets):
             url=f'https://api.debank.com/portfolio/project_list?user_addr={address}',
         )
 
-        for pool in resp.json()['data']:
-            pools[f"{pool['name']} ({pool['chain']})"] = []
-            for item in pool['portfolio_item_list']:
-                for coin in item['asset_token_list']:
-                    pools[f"{pool['name']} ({pool['chain']})"].append({
-                        'amount': coin['amount'],
-                        'name': coin['name'],
-                        'ticker': coin['optimized_symbol'],
-                        'price': coin['price'],
-                        'logo_url': coin['logo_url']
+        data = resp.json().get('data', [])
+        if not data:
+            logger.warning(f"No data returned for wallet {address}")
+            return pools
+
+        for pool in data:
+            pool_name = f"{pool['name']} ({pool['chain']})"
+            pools[pool_name] = []
+            for item in pool.get('portfolio_item_list', []):
+                for coin in item.get('asset_token_list', []):
+                    pools[pool_name].append({
+                        'amount': coin.get('amount'),
+                        'name': coin.get('name'),
+                        'ticker': coin.get('optimized_symbol'),
+                        'price': coin.get('price'),
+                        'logo_url': coin.get('logo_url')
                     })
 
         return pools
@@ -160,19 +165,22 @@ def get_pools(node_process, session, wallets):
 
     with alive_bar(len(wallets)) as a_bar:
         for wallet in wallets:
-            pools = get_pool(session, wallet)
-            for pool_name, pool_data in pools.items():
-                if pool_name not in all_pools:
-                    all_pools[pool_name] = {}
-                all_pools[pool_name][wallet] = pool_data
+            try:
+                pools = get_pool(session, wallet)
+                for pool_name, pool_data in pools.items():
+                    if pool_name not in all_pools:
+                        all_pools[pool_name] = {}
+                    all_pools[pool_name][wallet] = pool_data
+            except Exception as e:
+                logger.error(f"Error getting pools for wallet {wallet}: {str(e)}")
             a_bar()
 
     for pool in all_pools:
         for wallet in wallets:
             if wallet not in all_pools[pool]:
                 all_pools[pool][wallet] = []
-    print()
-
+    
+    logger.info(f"Found {len(all_pools)} pools")
     return all_pools
 
 def worker(queue_tasks, queue_results):
@@ -194,7 +202,7 @@ def worker(queue_tasks, queue_results):
 def process_balances(wallets, selected_chains, ticker, min_amount, num_of_threads, pools):
     """Process balances for all wallets."""
     coins = {chain: {} for chain in selected_chains}
-    pools_names = list(pools)
+    pools_names = list(pools.keys())
 
     queue_tasks = Queue()
     queue_results = Queue()
@@ -232,12 +240,15 @@ def process_balances(wallets, selected_chains, ticker, min_amount, num_of_thread
             balances[result[0]] = result[1]
             a_bar()
 
+    # Add pool balances to coins
+    for pool_name, pool_data in pools.items():
+        coins[pool_name] = pool_data
+
     queue_tasks.put(('done',))
     for th in threads:
         th.join()
 
     return coins, balances, start_time
-
 
 def get_balances(wallets, ticker=None, auto_import=False, session=None, node_process=None):
     """Get balances for all wallets."""
