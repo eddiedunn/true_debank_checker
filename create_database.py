@@ -27,6 +27,17 @@ from app.config import DB_FILE
 from app.config import SCHEMA_FILE
 
 def create_database(db_name: str, schema_file: str):
+    """
+    Create a SQLite database using the provided schema file.
+
+    Args:
+        db_name (str): The name of the database file to create.
+        schema_file (str): The path to the SQL schema file.
+
+    This function connects to the specified SQLite database (or creates it if it doesn't exist),
+    reads the SQL schema from the provided file, and executes the schema to set up the database
+    structure. The connection is then committed and closed.
+    """
     conn = sqlite3.connect(db_name)
     with open(schema_file, 'r', encoding='utf-8') as f:
         schema = f.read()

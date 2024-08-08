@@ -104,7 +104,7 @@ def send_request(node_process, session, method, url, payload=None, params=None):
     while True:
         try:
             resp = _make_request(session, method, url, payload, params)
- 
+
             if resp.status_code == 200:
                 return _handle_success(resp)
             if resp.status_code == 429:

@@ -96,12 +96,6 @@ def get_used_chains(node_process, session, address):
 
     return chains
 
-≥
-            chains = chains.union(get_used_chains(node_process, session, wallet))
-            progress_bar()
-
-    print()
-    return chains
 
 def get_wallet_balance(node_process, session, address):
     """Get the total balance of a wallet."""
